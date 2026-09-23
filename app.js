@@ -86,13 +86,13 @@ async function api(action, payload) {
 
 // ---------- ログイン ----------
 $('showPin').onchange = (e) => { $('empInput').type = e.target.checked ? 'text' : 'password'; };
-$('empInput').addEventListener('input', (e) => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 8); });
+$('empInput').addEventListener('input', (e) => { e.target.value = e.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 8); });
 $('empInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
 $('loginBtn').onclick = doLogin;
 async function doLogin() {
-  const id = $('empInput').value.trim();
+  const id = $('empInput').value.trim().toUpperCase();
   const msg = $('loginMsg');
-  if (!/^\d{8}$/.test(id)) { msg.className = 'msg err'; msg.textContent = '職番は8桁の数字で入力してください'; return; }
+  if (!/^[A-Z0-9]{8}$/.test(id)) { msg.className = 'msg err'; msg.textContent = '職番は英数字8桁で入力してください'; return; }
   msg.textContent = ''; loading(true);
   try {
     const r = await api('login', { empId: id });
