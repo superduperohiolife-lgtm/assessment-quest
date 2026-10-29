@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>Business Quest｜フィードバックシート</title>
+<style>
+:root{--bg:#060d24;--win:#0a1a4f;--win2:#122a6e;--ink:#fff;--sub:#b9c8f2;--gold:#ffd23f;--ok:#3ddc84;--ng:#ff5a5a;
+  --font:"Meiryo UI","Meiryo","Hiragino Kaku Gothic ProN","Yu Gothic UI",sans-serif;}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--font);background:linear-gradient(180deg,#050b20,#0b1747 55%,#12225c);color:var(--ink);min-height:100vh}
+.wrap{max-width:760px;margin:0 auto;padding:24px 16px 60px}
+h1{font-size:22px;color:var(--gold);margin:0 0 4px}
+.lead{color:var(--sub);font-size:14px;line-height:1.7;margin:0 0 18px}
+.box{background:var(--win);border:3px solid #fff;border-radius:6px;box-shadow:0 0 0 3px var(--win2),6px 6px 0 #030920;padding:18px;margin-bottom:18px}
+h2{font-size:16px;color:var(--gold);margin:0 0 12px;border-bottom:1px dashed #5a73c4;padding-bottom:6px}
+.q{margin:0 0 20px}
+.q:last-child{margin-bottom:0}
+.qt{font-weight:bold;line-height:1.6;margin-bottom:8px}
+.req{color:var(--ng);font-size:12px;margin-left:6px}
+.opt{color:var(--sub);font-size:12px;margin-left:6px}
+.hint{color:var(--sub);font-size:12px;margin:-4px 0 8px}
+.choices{display:flex;flex-wrap:wrap;gap:8px}
+.choices label{display:flex;align-items:center;gap:6px;background:var(--win2);border:1px solid #5a73c4;border-radius:4px;padding:8px 12px;cursor:pointer;font-size:14px}
+.choices input{accent-color:var(--gold)}
+.scale-note{display:flex;justify-content:space-between;color:var(--sub);font-size:12px;max-width:330px;margin-top:4px}
+textarea,input[type=text],input[type=password]{width:100%;font-family:var(--font);font-size:15px;padding:10px;border-radius:4px;border:2px solid #5a73c4;background:#fff;color:#111}
+textarea{min-height:80px;resize:vertical}
+button{font-family:var(--font);font-size:16px;font-weight:bold;padding:12px 28px;border:3px solid #fff;border-radius:6px;background:var(--gold);color:#1a1a1a;cursor:pointer}
+button:disabled{opacity:.5;cursor:default}
+.ghost{background:transparent;color:var(--sub);border:1px solid var(--sub);font-size:13px;padding:6px 12px}
+.msg{min-height:22px;font-size:14px;margin-top:10px}
+.msg.err{color:var(--ng)} .msg.ok{color:var(--ok)}
+.bar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:14px;color:var(--sub);font-size:14px}
+.hidden{display:none}
+.privacy{font-size:12px;color:var(--sub);line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>フィードバックシート</h1>
+  <p class="lead">本番試験を受けたあとの感想を教えてください。回答はアプリの精度向上にのみ使います。所要時間は5〜10分です。</p>
+
+  <!-- ログイン -->
+  <div id="loginBox" class="box">
+    <h2>職番でログイン</h2>
+    <input id="emp" type="password" maxlength="8" autocomplete="off" placeholder="職番（英数字8桁）">
+    <label style="display:block;margin:8px 0 14px;font-size:13px;color:var(--sub)"><input type="checkbox" id="showPin"> 入力内容を表示</label>
+    <button id="loginBtn">ログイン</button>
+    <div id="loginMsg" class="msg"></div>
+    <p class="privacy">回答は管理者だけが確認します。あなた以外の人の画面に表示されることはありません。</p>
+  </div>
+
+  <!-- アンケート -->
+  <form id="form" class="hidden" novalidate>
+    <div class="bar"><span id="who"></span><button type="button" class="ghost" id="logout">ログアウト</button></div>
+    <div id="prev" class="msg ok"></div>
+    <div id="sections"></div>
+    <div class="box">
+      <button type="submit" id="send">送信する</button>
+      <div id="formMsg" class="msg"></div>
+      <p class="privacy">送信後も、同じ職番でログインすれば内容を修正できます（最後に送信した内容が保存されます）。</p>
+    </div>
+  </form>
+
+  <!-- 完了 -->
+  <div id="done" class="box hidden">
+    <h2>ご協力ありがとうございました</h2>
+    <p class="lead" style="margin:0 0 14px">回答を受け付けました。内容を直したいときは、もう一度ログインしてください。</p>
+    <button type="button" id="again" class="ghost">回答を見直す</button>
+  </div>
+</div>
+
+<script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbwy7z0TCMmchdolYVfxGpChOcKVcXHeAe-_CyHHphMewYtvKMoSnmMY60Bh0BXmKwUw0g/exec';
+const S5 = ['1','2','3','4','5'];
+const SECTIONS = [
+  { title: 'A. 本番との比較', qs: [
+    { k:'q1', t:'本番の問題は、アプリの問題と比べてどうでしたか', type:'scale', lo:'全く違う', hi:'ほぼ同じ', req:1 },
+    { k:'q2', t:'本番の難易度は、アプリと比べてどうでしたか', type:'radio', o:['かなり易しい','やや易しい','同じくらい','やや難しい','かなり難しい'], req:1 },
+    { k:'q3', t:'本番で「アプリで練習しておいて良かった」と感じた分野', type:'check', o:['会計','財務','戦略','マーケ','CT','特になし'], hint:'複数選択できます' },
+    { k:'q4', t:'本番で出たが、アプリで練習できていなかった論点・問題形式', type:'text', hint:'例：〇〇の計算、長文ケースの形式 など' },
+    { k:'q5', t:'アプリの成績と、本番の手応えは近かったですか', type:'scale', lo:'全く違う', hi:'ほぼ同じ', req:1 },
+    { k:'q5s', t:'差し支えなければ、本番のスコア', type:'line', hint:'任意です。空欄でかまいません' },
+  ]},
+  { title: 'B. 問題と解説の質', qs: [
+    { k:'q6', t:'正解や解説に疑問を感じた問題はありましたか', type:'radio', o:['あり','なし'], req:1 },
+    { k:'q6d', t:'「あり」の場合、分かる範囲で分野・内容を教えてください', type:'text', show:{ k:'q6', v:'あり' } },
+    { k:'q7', t:'解説は理解の助けになりましたか', type:'scale', lo:'ならなかった', hi:'とてもなった', req:1 },
+    { k:'q8', t:'同じ問題が何度も出て、答えを覚えてしまったと感じましたか', type:'radio', o:['よくあった','時々あった','ほぼない'], req:1 },
+  ]},
+  { title: 'C. 使いやすさ・続けやすさ', qs: [
+    { k:'q9', t:'1回あたりの問題数（10問・20問）は適切でしたか', type:'radio', o:['少ない','ちょうど良い','多い'], req:1 },
+    { k:'q10', t:'ランク・Lv・コンボなどのゲーム要素は、続ける動機になりましたか', type:'scale', lo:'ならなかった', hi:'とてもなった', req:1 },
+    { k:'q11', t:'使いにくかった点・不具合（ログイン、表示、操作など）', type:'text' },
+    { k:'q12', t:'次の受験者に勧めるとしたら、一番改善してほしい点', type:'text' },
+  ]},
+];
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+let token = null;
+
+async function api(action, payload) {
+  const res = await fetch(API_URL, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({ action }, payload || {})), redirect:'follow' });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+function renderForm() {
+  $('sections').innerHTML = SECTIONS.map((sec) => `<div class="box"><h2>${esc(sec.title)}</h2>${sec.qs.map((q, i) => {
+    const mark = q.req ? '<span class="req">必須</span>' : '<span class="opt">任意</span>';
+    let body = '';
+    if (q.type === 'scale') body = `<div class="choices">${S5.map((v) => `<label><input type="radio" name="${q.k}" value="${v}">${v}</label>`).join('')}</div><div class="scale-note"><span>1＝${esc(q.lo)}</span><span>5＝${esc(q.hi)}</span></div>`;
+    else if (q.type === 'radio') body = `<div class="choices">${q.o.map((v) => `<label><input type="radio" name="${q.k}" value="${esc(v)}">${esc(v)}</label>`).join('')}</div>`;
+    else if (q.type === 'check') body = `<div class="choices">${q.o.map((v) => `<label><input type="checkbox" name="${q.k}" value="${esc(v)}">${esc(v)}</label>`).join('')}</div>`;
+    else if (q.type === 'line') body = `<input type="text" name="${q.k}" maxlength="100">`;
+    else body = `<textarea name="${q.k}" maxlength="1000"></textarea>`;
+    return `<div class="q" id="wrap_${q.k}"><div class="qt">${esc(q.t)}${mark}</div>${q.hint ? `<div class="hint">${esc(q.hint)}</div>` : ''}${body}</div>`;
+  }).join('')}</div>`).join('');
+  $('form').addEventListener('change', toggleCond);
+}
+function allQs() { return SECTIONS.flatMap((s) => s.qs); }
+function toggleCond() {
+  allQs().filter((q) => q.show).forEach((q) => {
+    const on = getVal(q.show.k) === q.show.v;
+    $('wrap_' + q.k).style.display = on ? '' : 'none';
+  });
+}
+function getVal(k) {
+  const q = allQs().find((x) => x.k === k), f = $('form');
+  if (q.type === 'check') return [...f.querySelectorAll(`input[name="${k}"]:checked`)].map((e) => e.value);
+  if (q.type === 'scale' || q.type === 'radio') { const e = f.querySelector(`input[name="${k}"]:checked`); return e ? e.value : ''; }
+  return f.querySelector(`[name="${k}"]`).value.trim();
+}
+function setVals(a) {
+  const f = $('form');
+  allQs().forEach((q) => {
+    const v = a[q.k];
+    if (v == null) return;
+    if (q.type === 'check') f.querySelectorAll(`input[name="${q.k}"]`).forEach((e) => { e.checked = v.includes(e.value); });
+    else if (q.type === 'scale' || q.type === 'radio') f.querySelectorAll(`input[name="${q.k}"]`).forEach((e) => { e.checked = e.value === String(v); });
+    else f.querySelector(`[name="${q.k}"]`).value = v;
+  });
+  toggleCond();
+}
+
+$('emp').addEventListener('input', (e) => { e.target.value = e.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 8); });
+$('emp').addEventListener('keydown', (e) => { if (e.key === 'Enter') login(); });
+$('showPin').onchange = (e) => { $('emp').type = e.target.checked ? 'text' : 'password'; };
+$('loginBtn').onclick = login;
+
+async function login() {
+  const id = $('emp').value, msg = $('loginMsg');
+  msg.className = 'msg';
+  if (!/^[A-Z0-9]{8}$/.test(id)) { msg.className = 'msg err'; msg.textContent = '職番は英数字8桁で入力してください'; return; }
+  $('loginBtn').disabled = true; msg.textContent = '確認中…';
+  try {
+    const r = await api('login', { empId: id, lite: true });
+    if (!r.ok) { msg.className = 'msg err'; msg.textContent = r.err === 'locked' ? '試行回数が多すぎます。しばらく待ってから再度お試しください' : 'この職番ではログインできません（未登録または無効）'; return; }
+    token = r.token; $('emp').value = ''; msg.textContent = '';
+    $('who').textContent = (r.name ? r.name + ' さん' : '') + '（職番 ****' + id.slice(-4) + '）';
+    renderForm();
+    const g = await api('surveyGet', { token });
+    if (g.ok && g.answers) { setVals(g.answers); $('prev').textContent = '前回の回答（' + g.updated + '）を表示しています。修正して送信できます'; }
+    else { $('prev').textContent = ''; toggleCond(); }
+    $('loginBox').classList.add('hidden'); $('done').classList.add('hidden'); $('form').classList.remove('hidden');
+    window.scrollTo(0, 0);
+  } catch (e) { msg.className = 'msg err'; msg.textContent = '通信エラーが発生しました。時間をおいて再度お試しください'; }
+  finally { $('loginBtn').disabled = false; }
+}
+
+$('form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = $('formMsg'), answers = {};
+  allQs().forEach((q) => { answers[q.k] = getVal(q.k); });
+  if (answers.q6 !== 'あり') answers.q6d = '';
+  const miss = allQs().filter((q) => q.req && !answers[q.k]);
+  if (miss.length) { msg.className = 'msg err'; msg.textContent = '未回答の必須項目があります：' + miss.map((q) => q.k.toUpperCase()).join('・'); $('wrap_' + miss[0].k).scrollIntoView({ behavior:'smooth', block:'center' }); return; }
+  $('send').disabled = true; msg.className = 'msg'; msg.textContent = '送信中…';
+  try {
+    const r = await api('surveySubmit', { token, answers });
+    if (r.ok) { $('form').classList.add('hidden'); $('done').classList.remove('hidden'); msg.textContent = ''; window.scrollTo(0, 0); }
+    else if (r.err === 'auth') { msg.className = 'msg err'; msg.textContent = 'ログインの有効期限が切れました。お手数ですが、ログインし直してから送信してください'; }
+    else { msg.className = 'msg err'; msg.textContent = '送信できませんでした（' + r.err + '）'; }
+  } catch (e2) { msg.className = 'msg err'; msg.textContent = '通信エラーが発生しました。もう一度送信してください'; }
+  finally { $('send').disabled = false; }
+});
+$('again').onclick = () => { $('done').classList.add('hidden'); $('form').classList.remove('hidden'); };
+$('logout').onclick = () => { token = null; $('sections').innerHTML = ''; $('form').classList.add('hidden'); $('done').classList.add('hidden'); $('loginBox').classList.remove('hidden'); };
+</script>
+</body>
+</html>

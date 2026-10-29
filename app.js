@@ -126,7 +126,8 @@ function areaStat(k) {
     return { total: pool.length, txt: (mixc ? `挑戦 ${mixc.plays}回・ベスト ${mixc.best}点` : '未挑戦') + (n ? `｜4分野 通算正答率 ${pct(ok, n)}%` : '') };
   }
   const c = S.me.byCat[k];
-  return { total: pool.length, txt: c ? `挑戦 ${c.plays}回・正答率 ${pct(c.correct, c.n)}%・ベスト ${c.best}点` : '未挑戦' };
+  const unseen = pool.filter((q) => !(S.me.cnt || {})[q.id]).length;
+  return { total: pool.length, txt: c ? `挑戦 ${c.plays}回・正答率 ${pct(c.correct, c.n)}%・ベスト ${c.best}点・未出題 ${unseen}問` : '未挑戦' };
 }
 function areaBtn(k) {
   const a = AREAS[k], st = areaStat(k);
@@ -167,6 +168,8 @@ function pickQuestions(k, mode) {
   let pool = mode === 'rev' ? revPool(k) : S.bank.questions.filter((q) => (k === 'mix' ? q.c !== 'ct' : q.c === k));
   const n = Math.min(MODES[mode].n, pool.length);
   pool = shuffle(pool);
+  // 通常モードは「まだ解いていない問題」→「解いた回数が少ない問題」の順に優先（同じ回数ならランダム）
+  if (mode !== 'rev') { const cnt = S.me.cnt || {}; pool.sort((x, y) => (cnt[x.id] || 0) - (cnt[y.id] || 0)); }
   let sel = pool.slice(0, n);
   // 同じケース（資料）の問題は連続させる
   const firstIdx = {};
