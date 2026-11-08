@@ -98,7 +98,7 @@ async function doLogin() {
     const r = await api('login', { empId: id });
     if (!r.ok) {
       msg.className = 'msg err';
-      msg.textContent = r.err === 'locked' ? '試行回数が多すぎます。しばらく待ってから再度お試しください' : 'この職番ではログインできません（未登録または無効）';
+      msg.textContent = r.err === 'locked' ? '試行回数が多すぎます。しばらく待ってから再度お試しください' : r.err === 'closed' ? CLOSED_MSG : 'この職番ではログインできません（未登録または無効）';
       SFX.ng(); return;
     }
     S.token = r.token; S.name = r.name || ''; S.emp = id; S.bank = r.bank; S.me = r.me;
@@ -294,6 +294,7 @@ async function finish() {
   show('resultScreen'); SFX.fan();
   await save();
 }
+const CLOSED_MSG = '演習の利用期間（11/6 16:00まで）が終了したため、ご利用いただけません。フィードバックアンケートは引き続き回答できます';
 async function save() {
   if (!Q || Q.saved) return;
   const m = $('rSave'); m.className = 'msg'; m.textContent = '記録を保存中…';
@@ -304,7 +305,7 @@ async function save() {
     Q.saved = true; S.me = r.me; m.className = 'msg ok'; m.textContent = '記録を保存しました（あなたの職番のみに記録）';
   } catch (e) {
     m.className = 'msg err';
-    m.innerHTML = String(e.message) === 'auth' ? 'ログインの有効期限が切れたため保存できませんでした。再ログインしてください' : '保存に失敗しました <button class="btn small" type="button" id="retrySave">再試行</button>';
+    m.innerHTML = String(e.message) === 'closed' ? CLOSED_MSG : String(e.message) === 'auth' ? 'ログインの有効期限が切れたため保存できませんでした。再ログインしてください' : '保存に失敗しました <button class="btn small" type="button" id="retrySave">再試行</button>';
     const rb = $('retrySave'); if (rb) rb.onclick = save;
   }
 }
